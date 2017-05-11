@@ -25,18 +25,10 @@ boxes = []
 
 # Define a function to compute binned color features
 def bin_spatial(img, size=(32, 32)):
-    # Use cv2.resize().ravel() to create the feature vector
-    features = cv2.resize(img, size).ravel()
-    # Return the feature vector
-    return features
-
-"""
-def bin_spatial(img, size=(32, 32)):
     color1 = cv2.resize(img[:,:,0], size).ravel()
     color2 = cv2.resize(img[:,:,1], size).ravel()
     color3 = cv2.resize(img[:,:,2], size).ravel()
     return np.hstack((color1, color2, color3))
-"""
 
 # Define a function to compute color histogram features
 def color_hist(img, nbins=32, bins_range=(0, 256)):
@@ -278,6 +270,7 @@ def get_hog_features(img, orient, pix_per_cell, cell_per_block,
                        visualise=vis, feature_vector=feature_vec)
         return features
 
+"""
 def bin_spatial(img, size=(32, 32)):
     color1 = cv2.resize(img[:,:,0], size).ravel()
     color2 = cv2.resize(img[:,:,1], size).ravel()
@@ -293,6 +286,7 @@ def color_hist(img, nbins=32):    #bins_range=(0, 256)
     hist_features = np.concatenate((channel1_hist[0], channel2_hist[0], channel3_hist[0]))
     # Return the individual histograms, bin_centers and feature vector
     return hist_features
+"""
 
 # Define a single function that can extract features using hog sub-sampling and make predictions
 def find_cars(img, ystart, ystop, scale, svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins):
@@ -301,7 +295,9 @@ def find_cars(img, ystart, ystop, scale, svc, X_scaler, orient, pix_per_cell, ce
     img = img.astype(np.float32)/255
 
     img_tosearch = img[ystart:ystop,:,:]
+
     ctrans_tosearch = convert_color(img_tosearch, conv='HLS')
+
     if scale != 1:
         imshape = ctrans_tosearch.shape
         ctrans_tosearch = cv2.resize(ctrans_tosearch, (np.int(imshape[1]/scale), np.int(imshape[0]/scale)))
@@ -318,7 +314,9 @@ def find_cars(img, ystart, ystop, scale, svc, X_scaler, orient, pix_per_cell, ce
     # 64 was the orginal sampling rate, with 8 cells and 8 pix per cell
     window = 64
     nblocks_per_window = (window // pix_per_cell) - cell_per_block + 1
+
     cells_per_step = 6  # Instead of overlap, define how many cells to step
+
     nxsteps = (nxblocks - nblocks_per_window) // cells_per_step
     nysteps = (nyblocks - nblocks_per_window) // cells_per_step
 
@@ -381,21 +379,23 @@ for image in images:
 # The quiz evaluator times out after 13s of CPU time
 
 sample_size = 900
-cars = cars[0:sample_size]
-notcars = notcars[0:sample_size]
+
+# cars = cars[0:sample_size]
+# notcars = notcars[0:sample_size]
 
 ### TODO: Tweak these parameters and see how the results change.
-color_space = 'HLS' # Can be RGB, HSV, LUV, HLS, YUV, YCrCb
-orient = 9  # HOG orientations
+color_space = 'HSV' # Can be RGB, HSV, LUV, HLS, YUV, YCrCb
+orient = 15  # HOG orientations
 pix_per_cell = 8 # HOG pixels per cell
-cell_per_block = 2 # HOG cells per block
-hog_channel = 'ALL' # Can be 0, 1, 2, or "ALL"
+cell_per_block = 4 # HOG cells per block
+hog_channel = 2 # Can be 0, 1, 2, or "ALL"
 spatial_size = (32, 32) # Spatial binning dimensions
 hist_bins = 32    # Number of histogram bins
 spatial_feat = True # Spatial features on or off
 hist_feat = True # Histogram features on or off
 hog_feat = True # HOG features on or off
 y_start_stop = [500, 650] # Min and max in y to search in slide_window()
+x_start_stop = [100, 1200] # Min and max in y to search in slide_window()
 
 
 car_features = extract_features(cars, color_space=color_space,
@@ -454,7 +454,7 @@ image = mpimg.imread('./test_images/bbox-example-image.jpg')
 draw_image = np.copy(image)
 
 windows = slide_window(image, x_start_stop=[None, None], y_start_stop=y_start_stop,
-                    xy_window=(96, 96), xy_overlap=(0.5, 0.5))
+                    xy_window=(96, 96), xy_overlap=(0.8, 0.8))
 
 hot_windows = search_windows(image, windows, svc, X_scaler, color_space=color_space,
                         spatial_size=spatial_size, hist_bins=hist_bins,
@@ -470,12 +470,10 @@ plt.show()
 
 scale = 1
 
-image = mpimg.imread('./test_images/bbox-example-image.jpg')
-
-out_img = find_cars(image, y_start_stop[0], y_start_stop[1], scale, svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins)
-
-plt.imshow(out_img)
-plt.show()
+#image = mpimg.imread('./test_images/bbox-example-image.jpg')
+#out_img = find_cars(image, y_start_stop[0], y_start_stop[1], scale, svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins)
+#plt.imshow(out_img)
+#plt.show()
 
 heat = np.zeros_like(image[:,:,0]).astype(np.float)
 
