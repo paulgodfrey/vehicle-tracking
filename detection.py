@@ -26,6 +26,7 @@ boxes = []
 hot_windows= []
 scale = 1
 current_frame = 0
+debug = 0
 
 # NOTE: the next import is only valid for scikit-learn version <= 0.17
 # for scikit-learn >= 0.18 use:
@@ -379,13 +380,21 @@ def draw_labeled_bboxes(img, labels):
 def find_vehicles_in_frame(image):
     global current_frame
     global hot_windows
+
     heat = np.zeros_like(image[:,:,0]).astype(np.float)
 
     draw_img_raw = np.copy(image)
     draw_img = np.copy(image)
 
+    hot_spots_coll = []
+
+    y_start_stop = [400, 550] # Min and max in y to search in slide_window()
+    x_start_stop = [100, 1200] # Min and max in y to search in slide_window()
+    window_size = (64, 64)
+    window_overlap = (0.8, 0.8)
+
     windows = slide_window(image, x_start_stop=x_start_stop, y_start_stop=y_start_stop,
-                        xy_window=(96, 96), xy_overlap=(0.5, 0.5))
+                        xy_window=window_size, xy_overlap=window_overlap)
 
     hot_spots = search_windows(image, windows, svc, X_scaler, color_space=color_space,
                             spatial_size=spatial_size, hist_bins=hist_bins,
@@ -394,11 +403,60 @@ def find_vehicles_in_frame(image):
                             hog_channel=hog_channel, spatial_feat=spatial_feat,
                             hist_feat=hist_feat, hog_feat=hog_feat)
 
-    draw_img_raw = draw_boxes(image, hot_spots, color=(0, 0, 255), thick=6)
+    for i in hot_spots:
+        hot_spots_coll.append(i)
 
-    plt.imshow(draw_img_raw)
-    plt.show()
-    
+    print(hot_spots[0:5])
+
+    y_start_stop = [450, 600] # Min and max in y to search in slide_window()
+    x_start_stop = [100, 1200] # Min and max in y to search in slide_window()
+    window_size = (100, 100)
+    window_overlap = (0.8, 0.8)
+
+    windows = slide_window(image, x_start_stop=x_start_stop, y_start_stop=y_start_stop,
+                        xy_window=window_size, xy_overlap=window_overlap)
+
+    hot_spots = search_windows(image, windows, svc, X_scaler, color_space=color_space,
+                            spatial_size=spatial_size, hist_bins=hist_bins,
+                            orient=orient, pix_per_cell=pix_per_cell,
+                            cell_per_block=cell_per_block,
+                            hog_channel=hog_channel, spatial_feat=spatial_feat,
+                            hist_feat=hist_feat, hog_feat=hog_feat)
+
+    for i in hot_spots:
+        hot_spots_coll.append(i)
+
+    y_start_stop = [500, 700] # Min and max in y to search in slide_window()
+    x_start_stop = [100, 1200] # Min and max in y to search in slide_window()
+    window_size = (200, 200)
+    window_overlap = (0.8, 0.8)
+
+    windows = slide_window(image, x_start_stop=x_start_stop, y_start_stop=y_start_stop,
+                        xy_window=window_size, xy_overlap=window_overlap)
+
+    hot_spots = search_windows(image, windows, svc, X_scaler, color_space=color_space,
+                            spatial_size=spatial_size, hist_bins=hist_bins,
+                            orient=orient, pix_per_cell=pix_per_cell,
+                            cell_per_block=cell_per_block,
+                            hog_channel=hog_channel, spatial_feat=spatial_feat,
+                            hist_feat=hist_feat, hog_feat=hog_feat)
+
+    for i in hot_spots:
+        hot_spots_coll.append(i)
+
+
+    print(hot_spots_coll[0:5])
+
+    hot_spots = hot_spots_coll
+
+    print(hot_spots[0:5])
+
+
+    if(debug):
+        draw_img_raw = draw_boxes(image, hot_spots, color=(0, 0, 255), thick=6)
+        plt.imshow(draw_img_raw)
+        plt.show()
+
     # Update curvature reading every 6 frames
     #if(current_frame % 6 == 0):
 
@@ -443,20 +501,25 @@ sample_size = 900
 # cars = cars[0:sample_size]
 # notcars = notcars[0:sample_size]
 
-color_space = 'HSV' # Can be RGB, HSV, LUV, HLS, YUV, YCrCb
-orient = 15  # HOG orientations
-pix_per_cell = 8 # HOG pixels per cell
-cell_per_block = 4 # HOG cells per block
-hog_channel = 2 # Can be 0, 1, 2, or "ALL"
+color_space = 'YUV' # Can be RGB, HSV, LUV, HLS, YUV, YCrCb
+
 spatial_size = (32, 32) # Spatial binning dimensions
+spatial_feat = True # Spatial features on or off
+
 hist_bins = 32    # Number of histogram bins
-spatial_feat = False # Spatial features on or off
 hist_feat = False # Histogram features on or off
+
+orient = 10  # HOG orientations
+pix_per_cell = 8 # HOG pixels per cell
+cell_per_block = 2 # HOG cells per block
+hog_channel = 'ALL' # Can be 0, 1, 2, or "ALL"
 hog_feat = True # HOG features on or off
+
 y_start_stop = [400, 650] # Min and max in y to search in slide_window()
 x_start_stop = [100, 1200] # Min and max in y to search in slide_window()
-window_size = (150, 150)
-window_overlap = (0.5, 0.5)
+
+window_size = (80, 80)
+window_overlap = (0.8, 0.8)
 
 car_features = extract_features(cars, color_space=color_space,
                         spatial_size=spatial_size, hist_bins=hist_bins,
@@ -509,13 +572,14 @@ print('Test Accuracy of SVC = ', round(svc.score(X_test, y_test), 4))
 t=time.time()
 
 # Flags to either process video stream or single image
-process_video = 0
-process_image = 1
+process_video = 1
+process_image = 0
+debug = 0
 
 # Process video
 if(process_video):
     white_output = 'vehicle_detection_output.mp4'
-    clip1 = VideoFileClip("test_video_2.mp4")
+    clip1 = VideoFileClip("test_video.mp4")
     white_clip = clip1.fl_image(find_vehicles_in_frame)
     white_clip.write_videofile(white_output, audio=False)
 
