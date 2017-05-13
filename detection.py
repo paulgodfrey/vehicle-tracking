@@ -671,7 +671,7 @@ calibrate_camera('camera_cal')
 # Process video
 if(process_video):
     white_output = 'vehicle_detection_output.mp4'
-    clip1 = VideoFileClip("test_video.mp4")
+    clip1 = VideoFileClip("project_video.mp4")
     white_clip = clip1.fl_image(find_vehicles_in_frame)
     white_clip.write_videofile(white_output, audio=False)
 
