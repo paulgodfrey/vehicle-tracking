@@ -28,11 +28,74 @@ scale = 1
 current_frame = 0
 debug = 0
 
+# Define a class to receive the characteristics of each lane line detected
+class CameraCalibration():
+    def __init__(self):
+        self.ret = []
+        # 3x3 floating-point camera matrix
+        self.mtx = []
+        # vector of distortion coefficients
+        self.dist = []
+        # vector of rotation vectors (see Rodrigues() ) estimated for each pattern view
+        self.rvecs = []
+        # vector of translation vectors estimated for each pattern view
+        self.tvecs = []
+
+camera_cal = CameraCalibration()
+
+def calibrate_camera(source_folder):
+    global camera_cal
+
+    # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
+    objp = np.zeros((6*9,3), np.float32)
+
+    objp[:,:2] = np.mgrid[0:9, 0:6].T.reshape(-1,2)
+
+    # Arrays to store object points and image points from all the images.
+    objpoints = [] # 3d points in real world space
+    imgpoints = [] # 2d points in image plane.
+
+    # Make a list of calibration images
+    images = glob.glob(source_folder + '/cal*.jpg')
+
+    # Step through the list and search for chessboard corners
+    for idx, fname in enumerate(images):
+        img = cv2.imread(fname)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        # Find the chessboard corners
+        ret, corners = cv2.findChessboardCorners(gray, (9,6), None)
+
+        # If found, add object points, image points
+        if ret == True:
+            objpoints.append(objp)
+            imgpoints.append(corners)
+
+    # Test undistortion on an image
+    img = cv2.imread(source_folder + '/test_calibration.jpg')
+    img_size = (img.shape[1], img.shape[0])
+
+    # Do camera calibration given object points and image points
+    camera_cal.ret, camera_cal.mtx, camera_cal.dist, camera_cal.rvecs, camera_cal.tvecs = cv2.calibrateCamera(objpoints, imgpoints, img_size, None, None)
+
+    """
+    if(debug):
+        dst = cv2.undistort(img, camera_cal.mtx, camera_cal.dist, None, camera_cal.mtx)
+        cv2.imwrite('calibration_wide/test_undist.jpg',dst)
+
+        f, (ax1, ax2) = plt.subplots(1, 2, figsize=(20,10))
+        ax1.imshow(img)
+        ax1.set_title('Original Image', fontsize=30)
+        ax2.imshow(dst)
+        ax2.set_title('Undistorted Image', fontsize=30)
+        plt.show()
+    """
+
 # NOTE: the next import is only valid for scikit-learn version <= 0.17
 # for scikit-learn >= 0.18 use:
 # from sklearn.model_selection import train_test_split
 # from sklearn.model_selection import train_test_split
-
+"""
 # Define a single function that can extract features using hog sub-sampling and make predictions
 def find_cars(img, ystart, ystop, scale, svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size, hist_bins):
     global boxes
@@ -107,6 +170,7 @@ def find_cars(img, ystart, ystop, scale, svc, X_scaler, orient, pix_per_cell, ce
                 cv2.rectangle(draw_img,(xbox_left, ytop_draw+ystart),(xbox_left+win_draw,ytop_draw+win_draw+ystart),(0,0,255),6)
 
     return draw_img
+"""
 
 # Define a function to compute binned color features
 def bin_spatial(img, size=(32, 32)):
@@ -377,19 +441,23 @@ def draw_labeled_bboxes(img, labels):
     # Return the image
     return img
 
-def find_vehicles_in_frame(image):
+def find_vehicles_in_frame(img):
     global current_frame
     global hot_windows
+
+    # Undistort source image
+    image = cv2.undistort(img, camera_cal.mtx, camera_cal.dist, None, camera_cal.mtx)
 
     heat = np.zeros_like(image[:,:,0]).astype(np.float)
 
     draw_img_raw = np.copy(image)
+    draw_img_hog = np.copy(image)
     draw_img = np.copy(image)
 
     hot_spots_coll = []
 
-    y_start_stop = [400, 550] # Min and max in y to search in slide_window()
-    x_start_stop = [100, 1200] # Min and max in y to search in slide_window()
+    y_start_stop = [400, 600] # Min and max in y to search in slide_window()
+    x_start_stop = [600, 1200] # Min and max in y to search in slide_window()
     window_size = (64, 64)
     window_overlap = (0.8, 0.8)
 
@@ -406,11 +474,12 @@ def find_vehicles_in_frame(image):
     for i in hot_spots:
         hot_spots_coll.append(i)
 
-    print(hot_spots[0:5])
+    print('search dimensions:', window_size, window_overlap, x_start_stop, y_start_stop)
+    print(hot_spots[0:10], "\n")
 
-    y_start_stop = [450, 600] # Min and max in y to search in slide_window()
-    x_start_stop = [100, 1200] # Min and max in y to search in slide_window()
-    window_size = (100, 100)
+    y_start_stop = [400, 650] # Min and max in y to search in slide_window()
+    x_start_stop = [600, 1280] # Min and max in y to search in slide_window()
+    window_size = (128, 128)
     window_overlap = (0.8, 0.8)
 
     windows = slide_window(image, x_start_stop=x_start_stop, y_start_stop=y_start_stop,
@@ -426,9 +495,12 @@ def find_vehicles_in_frame(image):
     for i in hot_spots:
         hot_spots_coll.append(i)
 
-    y_start_stop = [500, 700] # Min and max in y to search in slide_window()
-    x_start_stop = [100, 1200] # Min and max in y to search in slide_window()
-    window_size = (200, 200)
+    print('search dimensions:', window_size, window_overlap, x_start_stop, y_start_stop)
+    print(hot_spots[0:10], "\n")
+
+    y_start_stop = [400, 650] # Min and max in y to search in slide_window()
+    x_start_stop = [600, 1280] # Min and max in y to search in slide_window()
+    window_size = (90, 90)
     window_overlap = (0.8, 0.8)
 
     windows = slide_window(image, x_start_stop=x_start_stop, y_start_stop=y_start_stop,
@@ -444,18 +516,41 @@ def find_vehicles_in_frame(image):
     for i in hot_spots:
         hot_spots_coll.append(i)
 
-
-    print(hot_spots_coll[0:5])
+    print('search dimensions:', window_size, window_overlap, x_start_stop, y_start_stop)
+    print(hot_spots[0:10], "\n")
 
     hot_spots = hot_spots_coll
 
-    print(hot_spots[0:5])
-
-
     if(debug):
+        print('image shape', image.shape)
         draw_img_raw = draw_boxes(image, hot_spots, color=(0, 0, 255), thick=6)
         plt.imshow(draw_img_raw)
         plt.show()
+        """
+        ctrans_tosearch = convert_color(image, conv=color_space)
+
+        if scale != 1:
+            imshape = ctrans_tosearch.shape
+            ctrans_tosearch = cv2.resize(ctrans_tosearch, (np.int(imshape[1]/scale), np.int(imshape[0]/scale)))
+
+        ch1 = ctrans_tosearch[:,:,0]
+        ch2 = ctrans_tosearch[:,:,1]
+        ch3 = ctrans_tosearch[:,:,2]
+
+        features = []
+
+        features, draw_img_hog = get_hog_features(ch1, 9, 8, 2, True, True)
+        plt.imshow(draw_img_hog)
+        plt.show()
+
+        features, draw_img_hog = get_hog_features(ch2, 9, 8, 2, True, True)
+        plt.imshow(draw_img_hog)
+        plt.show()
+
+        features, draw_img_hog = get_hog_features(ch3, 9, 8, 2, True, True)
+        plt.imshow(draw_img_hog)
+        plt.show()
+        """
 
     # Update curvature reading every 6 frames
     #if(current_frame % 6 == 0):
@@ -507,19 +602,13 @@ spatial_size = (32, 32) # Spatial binning dimensions
 spatial_feat = True # Spatial features on or off
 
 hist_bins = 32    # Number of histogram bins
-hist_feat = False # Histogram features on or off
+hist_feat = True # Histogram features on or off
 
-orient = 10  # HOG orientations
+orient = 9  # HOG orientations
 pix_per_cell = 8 # HOG pixels per cell
 cell_per_block = 2 # HOG cells per block
-hog_channel = 'ALL' # Can be 0, 1, 2, or "ALL"
+hog_channel = 0 # Can be 0, 1, 2, or "ALL"
 hog_feat = True # HOG features on or off
-
-y_start_stop = [400, 650] # Min and max in y to search in slide_window()
-x_start_stop = [100, 1200] # Min and max in y to search in slide_window()
-
-window_size = (80, 80)
-window_overlap = (0.8, 0.8)
 
 car_features = extract_features(cars, color_space=color_space,
                         spatial_size=spatial_size, hist_bins=hist_bins,
@@ -576,10 +665,13 @@ process_video = 1
 process_image = 0
 debug = 0
 
+# Perform camera calibration so we can undistort input
+calibrate_camera('camera_cal')
+
 # Process video
 if(process_video):
     white_output = 'vehicle_detection_output.mp4'
-    clip1 = VideoFileClip("project_video.mp4")
+    clip1 = VideoFileClip("test_video.mp4")
     white_clip = clip1.fl_image(find_vehicles_in_frame)
     white_clip.write_videofile(white_output, audio=False)
 
