@@ -444,6 +444,19 @@ def convert_labels_to_rectangles(labels):
     # Return the image
     return boxes
 
+def grid_search(image, y_start_stop, x_start_stop, window_size, window_overlap):
+    windows = slide_window(image, x_start_stop=x_start_stop, y_start_stop=y_start_stop,
+                        xy_window=window_size, xy_overlap=window_overlap)
+
+    hot_spots = search_windows(image, windows, svc, X_scaler, color_space=color_space,
+                            spatial_size=spatial_size, hist_bins=hist_bins,
+                            orient=orient, pix_per_cell=pix_per_cell,
+                            cell_per_block=cell_per_block,
+                            hog_channel=hog_channel, spatial_feat=spatial_feat,
+                            hist_feat=hist_feat, hog_feat=hog_feat)
+
+    return hot_spots
+
 def find_vehicles_in_frame(img):
     global current_frame
     global hot_windows
@@ -460,71 +473,20 @@ def find_vehicles_in_frame(img):
 
     hot_spots_coll = []
 
-    y_start_stop = [400, 600] # Min and max in y to search in slide_window()
-    x_start_stop = [600, 1200] # Min and max in y to search in slide_window()
-    window_size = (64, 64)
-    window_overlap = (0.8, 0.8)
-
-    windows = slide_window(image, x_start_stop=x_start_stop, y_start_stop=y_start_stop,
-                        xy_window=window_size, xy_overlap=window_overlap)
-
-    hot_spots = search_windows(image, windows, svc, X_scaler, color_space=color_space,
-                            spatial_size=spatial_size, hist_bins=hist_bins,
-                            orient=orient, pix_per_cell=pix_per_cell,
-                            cell_per_block=cell_per_block,
-                            hog_channel=hog_channel, spatial_feat=spatial_feat,
-                            hist_feat=hist_feat, hog_feat=hog_feat)
+    hot_spots = grid_search(image, [400, 600], [600, 1200], (64, 64), (0.8, 0.8))
 
     for i in hot_spots:
         hot_spots_coll.append(i)
 
-    if(debug):
-        print('search dimensions:', window_size, window_overlap, x_start_stop, y_start_stop)
-        print(hot_spots[0:10], "\n")
-
-    y_start_stop = [400, 650] # Min and max in y to search in slide_window()
-    x_start_stop = [600, 1280] # Min and max in y to search in slide_window()
-    window_size = (128, 128)
-    window_overlap = (0.8, 0.8)
-
-    windows = slide_window(image, x_start_stop=x_start_stop, y_start_stop=y_start_stop,
-                        xy_window=window_size, xy_overlap=window_overlap)
-
-    hot_spots = search_windows(image, windows, svc, X_scaler, color_space=color_space,
-                            spatial_size=spatial_size, hist_bins=hist_bins,
-                            orient=orient, pix_per_cell=pix_per_cell,
-                            cell_per_block=cell_per_block,
-                            hog_channel=hog_channel, spatial_feat=spatial_feat,
-                            hist_feat=hist_feat, hog_feat=hog_feat)
+    hot_spots = grid_search(image, [400, 650], [600, 1280], (128, 128), (0.8, 0.8))
 
     for i in hot_spots:
         hot_spots_coll.append(i)
 
-    if(debug):
-        print('search dimensions:', window_size, window_overlap, x_start_stop, y_start_stop)
-        print(hot_spots[0:10], "\n")
-
-    y_start_stop = [400, 650] # Min and max in y to search in slide_window()
-    x_start_stop = [600, 1280] # Min and max in y to search in slide_window()
-    window_size = (90, 90)
-    window_overlap = (0.8, 0.8)
-
-    windows = slide_window(image, x_start_stop=x_start_stop, y_start_stop=y_start_stop,
-                        xy_window=window_size, xy_overlap=window_overlap)
-
-    hot_spots = search_windows(image, windows, svc, X_scaler, color_space=color_space,
-                            spatial_size=spatial_size, hist_bins=hist_bins,
-                            orient=orient, pix_per_cell=pix_per_cell,
-                            cell_per_block=cell_per_block,
-                            hog_channel=hog_channel, spatial_feat=spatial_feat,
-                            hist_feat=hist_feat, hog_feat=hog_feat)
+    hot_spots = grid_search(image, [400, 650], [600, 1280], (90, 90), (0.8, 0.8))
 
     for i in hot_spots:
         hot_spots_coll.append(i)
-
-    if(debug):
-        print('search dimensions:', window_size, window_overlap, x_start_stop, y_start_stop)
-        print(hot_spots[0:10], "\n")
 
     hot_spots = hot_spots_coll
 
@@ -558,10 +520,7 @@ def find_vehicles_in_frame(img):
         plt.imshow(draw_img_hog)
         plt.show()
         """
-
-    # Update curvature reading every 6 frames
-    #if(current_frame % 6 == 0):
-
+        
     # Add heat to each box in box list
     heat = add_heat(heat, hot_spots)
 
@@ -594,8 +553,6 @@ def find_vehicles_in_frame(img):
 
         vehicles_detected = vehicles_detected[-8:]
 
-    #boxes.append((bbox[0], bbox[1]))
-
     current_frame += 1
 
     return image
@@ -612,14 +569,6 @@ for image in images:
         notcars.append(image)
     else:
         cars.append(image)
-
-# Reduce the sample size because
-# The quiz evaluator times out after 13s of CPU time
-
-sample_size = 900
-
-# cars = cars[0:sample_size]
-# notcars = notcars[0:sample_size]
 
 color_space = 'YUV' # Can be RGB, HSV, LUV, HLS, YUV, YCrCb
 
@@ -652,7 +601,6 @@ notcar_features = extract_features(notcars, color_space=color_space,
 X = np.vstack((car_features, notcar_features)).astype(np.float64)
 
 # Fit a per-column scaler
-# X_scaler = StandardScaler().fit(X)
 X_scaler = StandardScaler().fit(X)
 
 # Apply the scaler to X
