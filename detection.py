@@ -24,6 +24,7 @@ warnings.filterwarnings("ignore")
 
 boxes = []
 hot_windows= []
+vehicles_detected = []
 scale = 1
 current_frame = 0
 debug = 0
@@ -426,7 +427,8 @@ def apply_threshold(heatmap, threshold):
     # Return thresholded map
     return heatmap
 
-def draw_labeled_bboxes(img, labels):
+def convert_labels_to_rectangles(labels):
+    boxes = []
     # Iterate through all detected cars
     for car_number in range(1, labels[1]+1):
         # Find pixels with each car_number label value
@@ -437,13 +439,15 @@ def draw_labeled_bboxes(img, labels):
         # Define a bounding box based on min/max x and y
         bbox = ((np.min(nonzerox), np.min(nonzeroy)), (np.max(nonzerox), np.max(nonzeroy)))
         # Draw the box on the image
-        cv2.rectangle(img, bbox[0], bbox[1], (0,0,255), 6)
+        #cv2.rectangle(img, bbox[0], bbox[1], (0,0,255), 6)
+        boxes.append((bbox[0], bbox[1]))
     # Return the image
-    return img
+    return boxes
 
 def find_vehicles_in_frame(img):
     global current_frame
     global hot_windows
+    global vehicles_detected
 
     # Undistort source image
     image = cv2.undistort(img, camera_cal.mtx, camera_cal.dist, None, camera_cal.mtx)
@@ -474,8 +478,9 @@ def find_vehicles_in_frame(img):
     for i in hot_spots:
         hot_spots_coll.append(i)
 
-    print('search dimensions:', window_size, window_overlap, x_start_stop, y_start_stop)
-    print(hot_spots[0:10], "\n")
+    if(debug):
+        print('search dimensions:', window_size, window_overlap, x_start_stop, y_start_stop)
+        print(hot_spots[0:10], "\n")
 
     y_start_stop = [400, 650] # Min and max in y to search in slide_window()
     x_start_stop = [600, 1280] # Min and max in y to search in slide_window()
@@ -495,8 +500,9 @@ def find_vehicles_in_frame(img):
     for i in hot_spots:
         hot_spots_coll.append(i)
 
-    print('search dimensions:', window_size, window_overlap, x_start_stop, y_start_stop)
-    print(hot_spots[0:10], "\n")
+    if(debug):
+        print('search dimensions:', window_size, window_overlap, x_start_stop, y_start_stop)
+        print(hot_spots[0:10], "\n")
 
     y_start_stop = [400, 650] # Min and max in y to search in slide_window()
     x_start_stop = [600, 1280] # Min and max in y to search in slide_window()
@@ -516,8 +522,9 @@ def find_vehicles_in_frame(img):
     for i in hot_spots:
         hot_spots_coll.append(i)
 
-    print('search dimensions:', window_size, window_overlap, x_start_stop, y_start_stop)
-    print(hot_spots[0:10], "\n")
+    if(debug):
+        print('search dimensions:', window_size, window_overlap, x_start_stop, y_start_stop)
+        print(hot_spots[0:10], "\n")
 
     hot_spots = hot_spots_coll
 
@@ -569,11 +576,29 @@ def find_vehicles_in_frame(img):
 
     hot_windows.append(labels)
 
-    draw_img = draw_labeled_bboxes(np.copy(image), labels)
+    vehicles = convert_labels_to_rectangles(labels)
+
+    for i in vehicles:
+        vehicles_detected.append([i[0][0], i[0][1], i[1][0], i[1][1]])
+
+    print('vehicles detected', vehicles_detected)
+
+    if(len(vehicles_detected) > 7):
+        vehicles_centroid, weights = cv2.groupRectangles(np.array(vehicles_detected).tolist(), groupThreshold=1)
+
+        print('centroids detected', vehicles_centroid)
+
+        for i in vehicles_centroid:
+            print(i)
+            cv2.rectangle(image, (i[0], i[1]), (i[2], i[3]), (0,0,255), 6)
+
+        vehicles_detected = vehicles_detected[-8:]
+
+    #boxes.append((bbox[0], bbox[1]))
 
     current_frame += 1
 
-    return draw_img
+    return image
 
 
 # Read in cars and notcars
@@ -671,7 +696,7 @@ calibrate_camera('camera_cal')
 # Process video
 if(process_video):
     white_output = 'vehicle_detection_output.mp4'
-    clip1 = VideoFileClip("project_video.mp4")
+    clip1 = VideoFileClip("test_video_2.mp4")
     white_clip = clip1.fl_image(find_vehicles_in_frame)
     white_clip.write_videofile(white_output, audio=False)
 
