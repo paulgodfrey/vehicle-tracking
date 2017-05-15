@@ -296,22 +296,22 @@ def find_vehicles_in_frame(img):
 
     hot_spots_coll = []
 
-    hot_spots = grid_search(image, [350, 600], [600, 1200], (64, 64), (0.8, 0.8))
+    hot_spots = grid_search(image, [350, 500], [600, 1280], (75, 75), (0.7, 0.7))
 
     for i in hot_spots:
         hot_spots_coll.append(i)
 
-    hot_spots = grid_search(image, [350, 650], [600, 1280], (85, 58), (0.8, 0.8))
+    hot_spots = grid_search(image, [375, 650], [600, 1280], (90, 90), (0.7, 0.7))
 
     for i in hot_spots:
         hot_spots_coll.append(i)
 
-    hot_spots = grid_search(image, [450, 650], [600, 1280], (100, 100), (0.8, 0.8))
+    hot_spots = grid_search(image, [400, 650], [600, 1280], (120, 120), (0.7, 0.7))
 
     for i in hot_spots:
         hot_spots_coll.append(i)
 
-    hot_spots = grid_search(image, [500, 650], [600, 1280], (140, 140), (0.8, 0.8))
+    hot_spots = grid_search(image, [500, 650], [600, 1280], (140, 140), (0.5, 0.5))
 
     for i in hot_spots:
         hot_spots_coll.append(i)
