@@ -5,13 +5,15 @@ import random
 import cv2
 import glob
 import time
+
 from sklearn.svm import LinearSVC
 from sklearn.preprocessing import StandardScaler
-from skimage.feature import hog
 from sklearn.model_selection import train_test_split
 from sklearn import datasets
 from sklearn import svm
 from sklearn.utils import shuffle
+
+from skimage.feature import hog
 from scipy.ndimage.measurements import label
 
 import matplotlib.image as mpimg
@@ -46,6 +48,7 @@ class CameraCalibration():
 
 camera_cal = CameraCalibration()
 
+# Calibrate camera distortion matrix given source images
 def calibrate_camera(source_folder):
     global camera_cal
 
@@ -94,8 +97,10 @@ def color_hist(img, nbins=32, bins_range=(0, 256)):
     channel1_hist = np.histogram(img[:,:,0], bins=nbins, range=bins_range)
     channel2_hist = np.histogram(img[:,:,1], bins=nbins, range=bins_range)
     channel3_hist = np.histogram(img[:,:,2], bins=nbins, range=bins_range)
+
     # Concatenate the histograms into a single feature vector
     hist_features = np.concatenate((channel1_hist[0], channel2_hist[0], channel3_hist[0]))
+
     # Return the individual histograms, bin_centers and feature vector
     return hist_features
 
@@ -267,6 +272,49 @@ def convert_labels_to_rectangles(labels):
     # Return the image
     return boxes
 
+# Define a function you will pass an image
+# and the list of windows to be searched (output of slide_windows())
+def search_windows(img, windows, clf, scaler, color_space='RGB',
+                    spatial_size=(32, 32), hist_bins=32,
+                    hist_range=(0, 256), orient=9,
+                    pix_per_cell=8, cell_per_block=2,
+                    hog_channel=0, spatial_feat=True,
+                    hist_feat=True, hog_feat=True):
+
+    # Create an empty list to receive positive detection windows
+    on_windows = []
+
+    count = 0
+
+    # Iterate over all windows in the list
+    for window in windows:
+
+        count += 1
+
+        # Extract the test window from original image
+        test_img = cv2.resize(img[window[0][1]:window[1][1], window[0][0]:window[1][0]], (64, 64))
+
+        # Extract features for that window using single_img_features()
+        features = single_img_features(test_img, color_space=color_space,
+                            spatial_size=spatial_size, hist_bins=hist_bins,
+                            orient=orient, pix_per_cell=pix_per_cell,
+                            cell_per_block=cell_per_block,
+                            hog_channel=hog_channel, spatial_feat=spatial_feat,
+                            hist_feat=hist_feat, hog_feat=hog_feat)
+
+        # Scale extracted features to be fed to classifier
+        test_features = scaler.transform(np.array(features).reshape(1, -1))
+
+        # Predict using your classifier
+        prediction = clf.predict(test_features)
+
+        # If positive (prediction == 1) then save the window
+        if prediction == 1:
+            on_windows.append(window)
+
+    #8) Return windows for positive detections
+    return on_windows
+
 def grid_search(image, y_start_stop, x_start_stop, window_size, window_overlap):
     windows = slide_window(image, x_start_stop=x_start_stop, y_start_stop=y_start_stop,
                         xy_window=window_size, xy_overlap=window_overlap)
@@ -289,37 +337,28 @@ def find_vehicles_in_frame(img):
     image = cv2.undistort(img, camera_cal.mtx, camera_cal.dist, None, camera_cal.mtx)
 
     heat = np.zeros_like(image[:,:,0]).astype(np.float)
-
-    draw_img_raw = np.copy(image)
-    draw_img_hog = np.copy(image)
     draw_img = np.copy(image)
 
+    # store multiple grid searches in a single list
     hot_spots_coll = []
 
+    # search for vehicles across various window sizes and xy coords
     hot_spots = grid_search(image, [350, 500], [600, 1280], (75, 75), (0.7, 0.7))
-
-    for i in hot_spots:
-        hot_spots_coll.append(i)
+    hot_spots_coll += hot_spots
 
     hot_spots = grid_search(image, [375, 650], [600, 1280], (90, 90), (0.7, 0.7))
-
-    for i in hot_spots:
-        hot_spots_coll.append(i)
+    hot_spots_coll += hot_spots
 
     hot_spots = grid_search(image, [400, 650], [600, 1280], (120, 120), (0.7, 0.7))
-
-    for i in hot_spots:
-        hot_spots_coll.append(i)
+    hot_spots_coll += hot_spots
 
     hot_spots = grid_search(image, [500, 650], [600, 1280], (140, 140), (0.7, 0.7))
-
-    for i in hot_spots:
-        hot_spots_coll.append(i)
+    hot_spots_coll += hot_spots
 
     hot_spots = hot_spots_coll
 
-    if(1 == 1):
-        print('image shape', image.shape)
+    # plot the raw vehicle detection to debug prior to grouping
+    if(debug):
         draw_img_raw = draw_boxes(image, hot_spots, color=(0, 0, 255), thick=2)
         plt.imshow(draw_img_raw)
         plt.show()
@@ -336,34 +375,37 @@ def find_vehicles_in_frame(img):
     # Find final boxes from heatmap using label function
     labels = label(heatmap)
 
+    # Get a list of rectangles to plot
     vehicles = convert_labels_to_rectangles(labels)
 
+    # Store vehicle coordinates in a "buffer"
     for i in vehicles:
         vehicles_detected.append([i[0][0], i[0][1], i[1][0], i[1][1]])
 
     print('vehicles detected', vehicles_detected)
 
+    # Allow buffer to build before grouping rectangles
     if(len(vehicles_detected) > 6):
+        # Group rectangles that overlap
         vehicles_centroid, weights = cv2.groupRectangles(np.array(vehicles_detected).tolist(), groupThreshold=4)
 
         print('centroids detected:', len(vehicles_centroid))
 
-        #use previous coordinates in num changes to prevent single frame false positives
+        # Use previous coordinates in num changes to prevent single frame false positives
         if(len(vehicles_centroid) == len(vehicles_centroid_last)):
             print('used newly extracted centroids')
             for i in vehicles_centroid:
                 print(i)
-                #vehicles_detected.append(np.array(i).tolist())
                 cv2.rectangle(image, (i[0], i[1]), (i[2], i[3]), (0,0,255), 6)
         else:
             print('centroid len changed - used previous frame data')
             for i in vehicles_centroid_last:
                 cv2.rectangle(image, (i[0], i[1]), (i[2], i[3]), (0,0,255), 6)
 
-        #update last used centroid list
+        # Update last used centroid list
         vehicles_centroid_last = vehicles_centroid
 
-        #trim stale data out of collection
+        #Trim stale data out of collection
         vehicles_detected = vehicles_detected[-20:]
     else:
         if(len(vehicles_centroid_last) > 0):
@@ -374,66 +416,6 @@ def find_vehicles_in_frame(img):
     current_frame += 1
 
     return image
-
-# Define a function you will pass an image
-# and the list of windows to be searched (output of slide_windows())
-def search_windows(img, windows, clf, scaler, color_space='RGB',
-                    spatial_size=(32, 32), hist_bins=32,
-                    hist_range=(0, 256), orient=9,
-                    pix_per_cell=8, cell_per_block=2,
-                    hog_channel=0, spatial_feat=True,
-                    hist_feat=True, hog_feat=True):
-
-    #1) Create an empty list to receive positive detection windows
-    on_windows = []
-
-    count = 0
-
-    #2) Iterate over all windows in the list
-    for window in windows:
-
-        count += 1
-
-        #3) Extract the test window from original image
-        test_img = cv2.resize(img[window[0][1]:window[1][1], window[0][0]:window[1][0]], (64, 64))
-
-        if(1 == 40):
-            feature_image = convert_color(test_img, conv=color_space)
-            # Get color features
-            spatial_features = bin_spatial(feature_image, size=spatial_size)
-            hist_features = color_hist(feature_image, nbins=hist_bins)
-
-            plt.imshow(feature_image)
-            plt.show()
-
-            # Plot features
-            plt.plot(spatial_features)
-            plt.title('SW Spatially Binned Features')
-            plt.show()
-
-            plt.plot(hist_features)
-            plt.title('SW Color Binned Features')
-            plt.show()
-        #4) Extract features for that window using single_img_features()
-        features = single_img_features(test_img, color_space=color_space,
-                            spatial_size=spatial_size, hist_bins=hist_bins,
-                            orient=orient, pix_per_cell=pix_per_cell,
-                            cell_per_block=cell_per_block,
-                            hog_channel=hog_channel, spatial_feat=spatial_feat,
-                            hist_feat=hist_feat, hog_feat=hog_feat)
-
-        #5) Scale extracted features to be fed to classifier
-        test_features = scaler.transform(np.array(features).reshape(1, -1))
-
-        #6) Predict using your classifier
-        prediction = clf.predict(test_features)
-
-        #7) If positive (prediction == 1) then save the window
-        if prediction == 1:
-            on_windows.append(window)
-
-    #8) Return windows for positive detections
-    return on_windows
 
 # Read in cars and notcars
 images = glob.glob('./training_data/all/*.jpeg')
@@ -448,12 +430,11 @@ for image in images:
         cars.append(image)
 
 color_space = 'YUV' # Can be RGB, HSV, LUV, HLS, YUV, YCrCb
-color_space_hog = 'YUV' # Can be RGB, HSV, LUV, HLS, YUV, YCrCb
 
 spatial_size = (32, 32) # Spatial binning dimensions
 spatial_feat = True # Spatial features on or off
 
-hist_bins = 32    # Number of histogram bins
+hist_bins = 32 # Number of histogram bins
 hist_feat = True # Histogram features on or off
 
 orient = 9  # HOG orientations
@@ -512,13 +493,6 @@ print(round(t2-t, 2), 'Seconds to train SVC...')
 print('Test Accuracy of SVC = ', round(svc.score(X_test, y_test), 4))
 # Check the prediction time for a single sample
 t=time.time()
-
-"""
-import pickle
-saved_model = pickle.dumps(clf)
-clf2 = pickle.loads(s)
-clf2.predict(X[0:1])
-"""
 
 # Flags to either process video stream or single image
 process_video = 1
