@@ -306,8 +306,7 @@ def find_vehicles_in_frame(img):
     for i in hot_spots:
         hot_spots_coll.append(i)
 
-    """
-    hot_spots = grid_search(image, [400, 650], [600, 1280], (100, 100), (0.8, 0.8))
+    hot_spots = grid_search(image, [450, 650], [600, 1280], (100, 100), (0.8, 0.8))
 
     for i in hot_spots:
         hot_spots_coll.append(i)
@@ -316,14 +315,12 @@ def find_vehicles_in_frame(img):
 
     for i in hot_spots:
         hot_spots_coll.append(i)
-    """
 
     hot_spots = hot_spots_coll
 
-
-    if(debug):
+    if(1 == 1):
         print('image shape', image.shape)
-        draw_img_raw = draw_boxes(image, hot_spots, color=(0, 0, 255), thick=6)
+        draw_img_raw = draw_boxes(image, hot_spots, color=(0, 0, 255), thick=2)
         plt.imshow(draw_img_raw)
         plt.show()
 
@@ -331,7 +328,7 @@ def find_vehicles_in_frame(img):
     heat = add_heat(heat, hot_spots)
 
     # Apply threshold to help remove false positives
-    heat = apply_threshold(heat, 1)
+    heat = apply_threshold(heat, 1.5)
 
     # Visualize the heatmap when displaying
     heatmap = np.clip(heat, 0, 255)
@@ -347,21 +344,31 @@ def find_vehicles_in_frame(img):
     print('vehicles detected', vehicles_detected)
 
     if(len(vehicles_detected) > 6):
-        vehicles_centroid, weights = cv2.groupRectangles(np.array(vehicles_detected).tolist(), groupThreshold=3, eps=0.1)
+        vehicles_centroid, weights = cv2.groupRectangles(np.array(vehicles_detected).tolist(), groupThreshold=4)
 
         print('centroids detected:', len(vehicles_centroid))
 
-        for i in vehicles_centroid:
-            print(i)
-            vehicles_detected.append(np.array(i).tolist())
-            cv2.rectangle(image, (i[0], i[1]), (i[2], i[3]), (0,0,255), 6)
+        #use previous coordinates in num changes to prevent single frame false positives
+        if(len(vehicles_centroid) == len(vehicles_centroid_last)):
+            print('used newly extracted centroids')
+            for i in vehicles_centroid:
+                print(i)
+                #vehicles_detected.append(np.array(i).tolist())
+                cv2.rectangle(image, (i[0], i[1]), (i[2], i[3]), (0,0,255), 6)
+        else:
+            print('centroid len changed - used previous frame data')
+            for i in vehicles_centroid_last:
+                cv2.rectangle(image, (i[0], i[1]), (i[2], i[3]), (0,0,255), 6)
 
+        #update last used centroid list
         vehicles_centroid_last = vehicles_centroid
+
+        #trim stale data out of collection
         vehicles_detected = vehicles_detected[-20:]
     else:
         if(len(vehicles_centroid_last) > 0):
+            print('no new data - used previous frame data')
             for i in vehicles_centroid_last:
-                print('used previous frame data')
                 cv2.rectangle(image, (i[0], i[1]), (i[2], i[3]), (0,0,255), 6)
 
     current_frame += 1
