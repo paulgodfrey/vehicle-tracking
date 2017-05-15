@@ -311,7 +311,7 @@ def find_vehicles_in_frame(img):
     for i in hot_spots:
         hot_spots_coll.append(i)
 
-    hot_spots = grid_search(image, [500, 650], [600, 1280], (140, 140), (0.5, 0.5))
+    hot_spots = grid_search(image, [500, 650], [600, 1280], (140, 140), (0.7, 0.7))
 
     for i in hot_spots:
         hot_spots_coll.append(i)
@@ -531,7 +531,7 @@ calibrate_camera('camera_cal')
 # Process video
 if(process_video):
     white_output = 'vehicle_detection_output.mp4'
-    clip1 = VideoFileClip("test_video_6.mp4")
+    clip1 = VideoFileClip("test_video_2.mp4")
     white_clip = clip1.fl_image(find_vehicles_in_frame)
     white_clip.write_videofile(white_output, audio=False)
 
