@@ -749,6 +749,22 @@ def find_vehicles_in_frame(img):
     # Find final boxes from heatmap using label function
     labels = label(heatmap)
 
+    plt.imghow(labels)
+    plt.show()
+
+    """
+
+    draw_img_raw = draw_boxes(image, hot_spots, color=(0, 0, 255), thick=2)
+    fig = plt.figure()
+    plt.subplot(121)
+    plt.imshow(draw_img_raw)
+    plt.title('Car Positions')
+    plt.subplot(122)
+    plt.imshow(heatmap, cmap='hot')
+    plt.title('Heat Map')
+    fig.tight_layout()
+    plt.show()
+    """
     # Get a list of rectangles to plot
     vehicles = convert_labels_to_rectangles(labels)
 
