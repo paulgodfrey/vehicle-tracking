@@ -246,7 +246,7 @@ def convert_color(img, conv):
     if conv == 'YCrCb':
         return cv2.cvtColor(img, cv2.COLOR_RGB2YCrCb)
 
-def get_hog_features(img, orient, pix_per_cell, cell_per_block,
+def v(img, orient, pix_per_cell, cell_per_block,
                         vis=False, feature_vec=True):
     # Call with two outputs if vis==True
     if vis == True:
@@ -749,11 +749,13 @@ def find_vehicles_in_frame(img):
     # Find final boxes from heatmap using label function
     labels = label(heatmap)
 
-    plt.imghow(labels)
+    draw_img_raw = draw_boxes(image, hot_spots, color=(0, 0, 255), thick=2)
+    plt.imshow(draw_img_raw)
     plt.show()
 
     """
-
+    plt.imshow(labels[0], cmap='gray')
+    plt.show()
     draw_img_raw = draw_boxes(image, hot_spots, color=(0, 0, 255), thick=2)
     fig = plt.figure()
     plt.subplot(121)
@@ -815,10 +817,15 @@ def find_vehicles_in_frame(img):
 
     font = cv2.FONT_HERSHEY_SIMPLEX
 
-    result = cv2.putText(image, radius_label, (20, 40), font, 1, (255,255,255), 2)
-    result = cv2.putText(image, offset_label, (20, 80), font, 1, (255,255,255), 2)
+    image = cv2.putText(image, radius_label, (20, 40), font, 1, (255,255,255), 2)
+    image = cv2.putText(image, offset_label, (20, 80), font, 1, (255,255,255), 2)
 
     current_frame += 1
+
+    """
+    plt.imshow(image)
+    plt.show()
+    """
 
     return image
 
@@ -900,7 +907,7 @@ print('Test Accuracy of SVC = ', round(svc.score(X_test, y_test), 4))
 t=time.time()
 
 # Flags to either process video stream or single image
-process_video = 1
+process_video = 0
 process_image = 0
 debug = 0
 
